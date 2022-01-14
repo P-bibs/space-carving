@@ -1,13 +1,18 @@
-use image::{DynamicImage, GenericImageView};
+use brdf::ConsistencyCheck;
+use image::{DynamicImage, GenericImageView, Pixel};
 use nalgebra_glm as glm;
-use std::env;
 use std::fs;
+use std::io;
+
+mod brdf;
 
 const NUM_IMAGES: usize = 10;
 
 struct Volume {
     data: Vec<Vec<Vec<bool>>>,
     voxel_size: f32,
+    front_top_left: glm::Vec3,
+    back_bottom_right: glm::Vec3,
     width: usize,
     height: usize,
     depth: usize,
@@ -48,6 +53,8 @@ impl Volume {
         Self {
             data: cols,
             voxel_size,
+            front_top_left,
+            back_bottom_right,
             width: width as usize,
             height: height as usize,
             depth: depth as usize,
@@ -73,9 +80,9 @@ impl Volume {
 
         // Since the voxels are not unit size, we need to scale the coordinates
         // to the correct voxel.
-        let x = (x / self.voxel_size);
-        let y = (y / self.voxel_size);
-        let z = (z / self.voxel_size);
+        let x = x / self.voxel_size;
+        let y = y / self.voxel_size;
+        let z = z / self.voxel_size;
 
         // Next, we need to shift by the values from being centered around 0 to
         // only the positive side of each axis
@@ -123,6 +130,9 @@ impl CameraData {
         );
         self.k * rt
     }
+    fn translation(&self) -> glm::Vec3 {
+        self.t
+    }
 }
 
 struct View {
@@ -154,7 +164,7 @@ fn load_views() -> Vec<View> {
         })
         .map(|line| CameraData::new(&line[0..9], &line[9..18], &line[18..21]));
 
-    let images = (1..10)
+    let images = (1..NUM_IMAGES)
         .map(|i| format!("data/templeRing/templeR{:0width$}.png", i, width = 4))
         .map(|filename| image::open(filename).expect("Couldn't open file"));
 
@@ -166,20 +176,94 @@ fn load_views() -> Vec<View> {
     return views;
 }
 
+fn carve_voxel(voxel: glm::IVec3, volume: &Volume, views: &Vec<&View>) -> bool {
+    let position = volume.voxel_to_position(voxel.x as usize, voxel.y as usize, voxel.z as usize);
+
+    let position = glm::vec4(
+        position[0] as f32,
+        position[1] as f32,
+        position[2] as f32,
+        1.0,
+    );
+
+    let mut colors_and_rays = vec![];
+
+    for view in views {
+        let back_projected: glm::Vec3 = view.camera.projection_matrix() * position;
+        let width = view.img.width();
+        let height = view.img.height();
+
+        let back_projected = glm::vec2(
+            back_projected[0] + (width as f32 / 2.0),
+            back_projected[1] + (height as f32 / 2.0),
+        );
+        let pix = view.img.get_pixel(
+            back_projected.x.floor() as u32,
+            back_projected.y.floor() as u32,
+        );
+
+        let scene_to_camera = view.camera.translation() - position.xyz();
+        let color_vec = glm::vec3(
+            pix.channels()[0] as f32 / 255.0,
+            pix.channels()[1] as f32 / 255.0,
+            pix.channels()[2] as f32 / 255.0,
+        );
+
+        colors_and_rays.push((color_vec, scene_to_camera));
+    }
+
+    let checker = brdf::VoxelColoring;
+
+    checker.consistent(&colors_and_rays)
+}
+
 fn main() {
     let views = load_views();
 
-    let volume = Volume::new(
-        0.1,
-        glm::vec3(-0.023121, -0.038009, -0.091940),
-        glm::vec3(0.078626, 0.121636, -0.017395),
-    );
-}
+    let voxel_size = 0.01;
+    let front_top_left = glm::vec3(-0.023121, -0.038009, -0.091940);
+    let back_bottom_right = glm::vec3(0.078626, 0.121636, -0.017395);
+    let mut volume = Volume::new(voxel_size, front_top_left, back_bottom_right);
+
+    let mut voxels_carved = 0;
+    loop {
+        println!("Carved {} voxels", voxels_carved);
+        let mut converged = true;
+
+        for plane_index in 0..volume.depth {
+            println!("Carving plane {}", plane_index);
+            let non_occluded_views: Vec<_> = views
+                .iter()
+                .filter(|view| view.camera.translation()[2] > plane_index as f32)
+                .collect();
+
+            for y in 0..volume.height {
+                println!("Carving row {}", y);
+                for x in 0..volume.width {
+                    println!("Carving voxel ({}, {})", x, y);
+                    if *volume.get_voxel(x, y, plane_index) == false {
+                        continue;
+                    }
+
+                    let pos_voxel_space = glm::vec3(x as i32, y as i32, plane_index as i32);
+
+                    let result = carve_voxel(pos_voxel_space, &volume, &non_occluded_views);
+
+                    if result == false {
+                        voxels_carved += 1;
+                        *volume.get_voxel(x, y, plane_index) = false;
+                        converged = false;
+                    }
+                }
+            }
+        }
 
         if converged {
             break;
         }
     }
+
+    println!("Finished. Carved {} voxels", voxels_carved);
 }
 
 #[cfg(test)]

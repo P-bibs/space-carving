@@ -7,7 +7,7 @@ pub trait ConsistencyCheck {
     fn consistent(&self, colors_and_rays: &Vec<(glm::Vec3, glm::Vec3)>) -> bool;
 }
 
-struct VoxelColoring;
+pub struct VoxelColoring;
 
 impl ConsistencyCheck for VoxelColoring {
     fn consistent(&self, colors_and_rays: &Vec<(glm::Vec3, glm::Vec3)>) -> bool {
@@ -38,6 +38,8 @@ impl ConsistencyCheck for VoxelColoring {
         }
 
         let standard_deviation = max_variance.sqrt();
+
+        println!("Standard deviation of {}", standard_deviation);
 
         return standard_deviation < THRESHOLD;
     }
