@@ -1,10 +1,90 @@
-use image::{DynamicImage, GenericImage, GenericImageView, ImageBuffer, RgbImage};
+use image::{DynamicImage, GenericImageView};
 use nalgebra_glm as glm;
 use std::env;
 use std::fs;
-use std::iter::FromIterator;
 
-const NUM_VOXELS: usize = 20;
+const NUM_IMAGES: usize = 10;
+
+struct Volume {
+    data: Vec<Vec<Vec<bool>>>,
+    voxel_size: f32,
+    width: usize,
+    height: usize,
+    depth: usize,
+}
+impl Volume {
+    fn new(voxel_size: f32, front_top_left: glm::Vec3, back_bottom_right: glm::Vec3) -> Self {
+        let width = ((back_bottom_right.x - front_top_left.x).abs() / voxel_size).ceil() as usize;
+        let height = ((back_bottom_right.y - front_top_left.y).abs() / voxel_size).ceil() as usize;
+        let depth = ((back_bottom_right.z - front_top_left.z).abs() / voxel_size).ceil() as usize;
+
+        // Ensure coordinates are even so the origin doesn't fall between voxels
+        let width = if width % 2 == 1 { width + 1 } else { width };
+        let height = if height % 2 == 1 { height + 1 } else { height };
+        let depth = if depth % 2 == 1 { depth + 1 } else { depth };
+
+        let mut cols = vec![];
+        for _ in 0..height {
+            let mut row = vec![];
+            for _ in 0..width {
+                let mut depth_line = vec![];
+                for _ in 0..depth {
+                    depth_line.push(false);
+                }
+                row.push(depth_line);
+            }
+            cols.push(row);
+        }
+
+        debug_assert_eq!(cols.len(), height);
+        debug_assert_eq!(cols[0].len(), width);
+        debug_assert_eq!(cols[0][0].len(), depth);
+
+        println!(
+            "Created volume with dimensions: {}x{}x{}",
+            width, height, depth
+        );
+
+        Self {
+            data: cols,
+            voxel_size,
+            width: width as usize,
+            height: height as usize,
+            depth: depth as usize,
+        }
+    }
+    fn get_voxel(&self, x: usize, y: usize, z: usize) -> bool {
+        self.data[y][x][z]
+    }
+    fn get_voxel_ws(&mut self, x: f32, y: f32, z: f32) -> &mut bool {
+        print!("Converting index at ({}, {}, {}) to voxel index: ", x, y, z);
+
+        // Flip y and z to match the 3d array coordinate system (origin in front-top-left)
+        let x = x;
+        let y = -y;
+        let z = -z;
+
+        // Since the voxels are not unit size, we need to scale the coordinates
+        // to the correct voxel.
+        let x = (x / self.voxel_size);
+        let y = (y / self.voxel_size);
+        let z = (z / self.voxel_size);
+
+        // Next, we need to shift by the values from being centered around 0 to
+        // only the positive side of each axis
+        let x = x + (self.width as f32 / 2.0);
+        let y = y + (self.height as f32 / 2.0);
+        let z = z + (self.depth as f32 / 2.0);
+
+        // floor floats to ints
+        let x = x.floor() as usize;
+        let y = y.floor() as usize;
+        let z = z.floor() as usize;
+
+        println!("{}, {}, {}", x, y, z);
+        &mut self.data[y][x][z]
+    }
+}
 
 struct CameraData {
     k: glm::Mat3,
@@ -82,5 +162,19 @@ fn load_views() -> Vec<View> {
 fn main() {
     let views = load_views();
 
-    let voxels = [[[glm::vec3(); 3]; NUM_VOXELS]; NUM_VOXELS];
+    let volume = Volume::new(
+        0.1,
+        glm::vec3(-0.023121, -0.038009, -0.091940),
+        glm::vec3(0.078626, 0.121636, -0.017395),
+    );
+}
+
+#[test]
+fn test_volume_methods() {
+    let mut volume = Volume::new(0.5, glm::vec3(-1.5, 1.5, 1.5), glm::vec3(1.5, -1.5, -1.5));
+    *volume.get_voxel_ws(-1.4, 1.4, 1.4) = true;
+    assert_eq!(*volume.get_voxel_ws(-1.1, 1.1, 1.1), true);
+
+    *volume.get_voxel_ws(0.0, 0.0, 0.0) = true;
+    assert_eq!(*volume.get_voxel_ws(0.0, 0.0, 0.0), true);
 }
