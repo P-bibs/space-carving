@@ -53,8 +53,15 @@ impl Volume {
             depth: depth as usize,
         }
     }
-    fn get_voxel(&self, x: usize, y: usize, z: usize) -> bool {
-        self.data[y][x][z]
+    fn voxel_to_position(&self, x: usize, y: usize, z: usize) -> glm::Vec3 {
+        let x = self.front_top_left.x + (x as f32 * self.voxel_size) + (self.voxel_size / 2.0);
+        let y = self.front_top_left.y - (y as f32 * self.voxel_size) - (self.voxel_size / 2.0);
+        let z = self.front_top_left.z - (z as f32 * self.voxel_size) - (self.voxel_size / 2.0);
+
+        return glm::vec3(x, y, z);
+    }
+    fn get_voxel(&mut self, x: usize, y: usize, z: usize) -> &mut bool {
+        &mut self.data[y][x][z]
     }
     fn get_voxel_ws(&mut self, x: f32, y: f32, z: f32) -> &mut bool {
         print!("Converting index at ({}, {}, {}) to voxel index: ", x, y, z);
