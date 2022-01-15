@@ -1,4 +1,5 @@
-use main::Volume;
+use crate::volume::Volume;
+use std::fs;
 
 pub fn write_ply(volume: &mut Volume, filename: &str) {
     let mut out = String::new();
