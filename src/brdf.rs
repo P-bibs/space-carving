@@ -1,7 +1,7 @@
 use nalgebra_glm as glm;
 use std::cmp;
 
-const THRESHOLD: f32 = 0.5;
+const THRESHOLD: f32 = 0.1;
 
 pub trait ConsistencyCheck {
     fn consistent(&self, colors_and_rays: &Vec<(glm::Vec3, glm::Vec3)>) -> bool;
@@ -11,6 +11,10 @@ pub struct VoxelColoring;
 
 impl ConsistencyCheck for VoxelColoring {
     fn consistent(&self, colors_and_rays: &Vec<(glm::Vec3, glm::Vec3)>) -> bool {
+        if colors_and_rays.len() == 0 {
+            panic!("Can't check consistency of no points");
+        }
+
         let length = colors_and_rays.len();
         let colors = colors_and_rays.iter().map(|(c, _)| c).collect::<Vec<_>>();
         // calculate Σ[X^2]
@@ -39,7 +43,7 @@ impl ConsistencyCheck for VoxelColoring {
 
         let standard_deviation = max_variance.sqrt();
 
-        println!("Standard deviation of {}", standard_deviation);
+        // println!("Standard deviation of {}", standard_deviation);
 
         return standard_deviation < THRESHOLD;
     }
