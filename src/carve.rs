@@ -86,3 +86,56 @@ pub fn carve_voxel(voxel: glm::IVec3, volume: &Volume, views: &mut Vec<&mut View
         return result;
     }
 }
+
+pub fn carve(volume: &mut Volume, views: &mut Vec<View>) {
+    let mut voxels_carved = 0;
+    loop {
+        println!("Carved {} voxels", voxels_carved);
+        let mut converged = true;
+
+        for view in views.iter_mut() {
+            view.reset_mask();
+        }
+
+        for plane_index in 0..volume.depth {
+            let plane_in_world_space = volume.voxel_to_position(0, 0, plane_index).z;
+            println!(
+                "Carving plane {} at location {}",
+                plane_index, plane_in_world_space
+            );
+            let mut non_occluded_views: Vec<_> = views
+                .iter_mut()
+                .filter(|view| view.camera.translation()[2] > plane_in_world_space)
+                .collect();
+
+            for y in 0..volume.height {
+                // println!("Carving row {}", y);
+                // io::stdout().flush();
+                for x in 0..volume.width {
+                    // println!("Carving voxel ({}, {})", x, y);
+                    if *volume.get_voxel(x, y, plane_index) == false
+                        || !volume.voxel_visible(x, y, plane_index)
+                    {
+                        continue;
+                    }
+
+                    let pos_voxel_space = glm::vec3(x as i32, y as i32, plane_index as i32);
+
+                    let result = carve_voxel(pos_voxel_space, &volume, &mut non_occluded_views);
+
+                    if result == false {
+                        voxels_carved += 1;
+                        *volume.get_voxel(x, y, plane_index) = false;
+                        converged = false;
+                    }
+                }
+            }
+        }
+
+        if converged {
+            break;
+        }
+    }
+
+    println!("Carved {} voxels", voxels_carved);
+}
