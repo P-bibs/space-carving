@@ -1,4 +1,3 @@
-use indicatif::{ProgressBar, ProgressStyle};
 use nalgebra_glm as glm;
 
 pub struct Volume {
@@ -127,5 +126,45 @@ impl Volume {
 
         println!("{}, {}, {}", x, y, z);
         &mut self.data[y][x][z]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    // Note this useful idiom: importing names from outer (for mod tests) scope.
+    use super::*;
+    #[test]
+    fn test_voxel_getters() {
+        let mut volume = Volume::new(0.5, glm::vec3(-1.5, 1.5, 1.5), glm::vec3(1.5, -1.5, -1.5));
+        *volume.get_voxel_ws(-1.4, 1.4, 1.4) = true;
+        assert_eq!(*volume.get_voxel_ws(-1.1, 1.1, 1.1), true);
+
+        *volume.get_voxel_ws(0.0, 0.0, 0.0) = true;
+        assert_eq!(*volume.get_voxel_ws(0.0, 0.0, 0.0), true);
+    }
+    #[test]
+    fn test_voxel_to_world_space_converter() {
+        let volume = Volume::new(1., glm::vec3(0., 2., 0.), glm::vec3(2., 0., -2.));
+        assert_eq!(volume.voxel_to_position(0, 0, 0), glm::vec3(0.5, 1.5, -0.5));
+
+        let volume = Volume::new(0.5, glm::vec3(0., 2., 0.), glm::vec3(2., 0., -2.));
+        assert_eq!(
+            volume.voxel_to_position(0, 0, 0),
+            glm::vec3(0.25, 1.75, -0.25)
+        );
+        assert_eq!(
+            volume.voxel_to_position(1, 1, 1),
+            glm::vec3(0.75, 1.25, -0.75)
+        );
+
+        let volume = Volume::new(0.5, glm::vec3(0., 2., -1.), glm::vec3(2., 0., -2.));
+        assert_eq!(
+            volume.voxel_to_position(0, 0, 0),
+            glm::vec3(0.25, 1.75, -1.25)
+        );
+        assert_eq!(
+            volume.voxel_to_position(1, 1, 1),
+            glm::vec3(0.75, 1.25, -1.75)
+        );
     }
 }

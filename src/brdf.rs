@@ -1,7 +1,6 @@
 use nalgebra_glm as glm;
-use std::cmp;
 
-const THRESHOLD: f32 = 0.1;
+const THRESHOLD: f32 = 0.2;
 
 pub trait ConsistencyCheck {
     fn consistent(&self, colors_and_rays: &Vec<(glm::Vec3, glm::Vec3)>) -> bool;
