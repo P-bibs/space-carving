@@ -1,6 +1,6 @@
 use nalgebra_glm as glm;
 
-const THRESHOLD: f32 = 0.2;
+const THRESHOLD: f32 = 0.06;
 
 pub trait ConsistencyCheck {
     fn consistent(&self, colors_and_rays: &Vec<(glm::Vec3, glm::Vec3)>) -> bool;
@@ -14,6 +14,13 @@ impl ConsistencyCheck for VoxelColoring {
             panic!("Can't check consistency of no points");
         }
 
+        // if colors_and_rays
+        //     .iter()
+        //     .any(|(c, _)| *c == glm::vec3(0.0, 0.0, 0.0))
+        // {
+        //     return false;
+        // }
+
         let length = colors_and_rays.len();
         let colors = colors_and_rays.iter().map(|(c, _)| c).collect::<Vec<_>>();
         // calculate Σ[X^2]
@@ -23,27 +30,32 @@ impl ConsistencyCheck for VoxelColoring {
             .fold(glm::vec3(0.0, 0.0, 0.0), |acc, c| acc + c);
 
         // Calculate mu
-        let average_color = colors
+        let sum_of_colors = colors
             .iter()
-            .fold(glm::vec3(0.0, 0.0, 0.0), |acc, c| acc + *c)
-            / (length as f32);
+            .fold(glm::vec3(0.0, 0.0, 0.0), |acc, c| acc + *c);
 
-        // variance is Σ[X^2] / N - mu^2
-        let variance =
-            (sum_of_colors_squared / length as f32) - average_color.component_mul(&average_color);
+        // square sums
+        let sum_of_colors = sum_of_colors.component_mul(&sum_of_colors);
 
-        let mut max_variance = variance.x;
-        if variance.y > max_variance {
-            max_variance = variance.y;
+        let variance = glm::vec3(
+            sum_of_colors_squared.y / length as f32,
+            sum_of_colors_squared.x / length as f32,
+            sum_of_colors_squared.z / length as f32,
+        ) - glm::vec3(
+            sum_of_colors.x / (length * length) as f32,
+            sum_of_colors.y / (length * length) as f32,
+            sum_of_colors.z / (length * length) as f32,
+        );
+
+        let threshold_squared = THRESHOLD * THRESHOLD;
+
+        if variance.x < threshold_squared
+            && variance.y < threshold_squared
+            && variance.z < threshold_squared
+        {
+            return true;
+        } else {
+            return false;
         }
-        if variance.z > max_variance {
-            max_variance = variance.z;
-        }
-
-        let standard_deviation = max_variance.sqrt();
-
-        // println!("Standard deviation of {}", standard_deviation);
-
-        return standard_deviation < THRESHOLD;
     }
 }

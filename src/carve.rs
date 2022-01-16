@@ -71,7 +71,7 @@ pub fn carve_voxel(voxel: glm::IVec3, volume: &Volume, views: &mut Vec<&mut View
     }
 
     if colors_and_rays.len() == 0 {
-        return true;
+        return false;
     } else {
         let checker = brdf::VoxelColoring;
 
@@ -87,54 +87,87 @@ pub fn carve_voxel(voxel: glm::IVec3, volume: &Volume, views: &mut Vec<&mut View
     }
 }
 
+enum XYZ {
+    X,
+    Y,
+    Z,
+}
+
+fn plane_sweep(which_plane: XYZ, volume: &mut Volume, views: &mut Vec<View>) -> usize {
+    let loop_bounds = match which_plane {
+        XYZ::X => (volume.width, volume.depth, volume.height),
+        XYZ::Y => (volume.height, volume.width, volume.depth),
+        XYZ::Z => (volume.depth, volume.height, volume.width),
+    };
+    let mut voxels_carved = 0;
+    for a in 0..loop_bounds.0 {
+        let index = match which_plane {
+            XYZ::X => 0,
+            XYZ::Y => 1,
+            XYZ::Z => 2,
+        };
+        let plane_in_world_space = match which_plane {
+            XYZ::X => volume.voxel_to_position(a, 0, 0).x,
+            XYZ::Y => volume.voxel_to_position(0, a, 0).y,
+            XYZ::Z => volume.voxel_to_position(0, 0, a).z,
+        };
+        println!("Carving plane {} at location {}", a, plane_in_world_space);
+        let mut non_occluded_views: Vec<_> = views
+            .iter_mut()
+            .filter(|view| view.camera.translation()[index] > plane_in_world_space)
+            .collect();
+
+        for b in 0..loop_bounds.1 {
+            // println!("Carving row {}", y);
+            // io::stdout().flush();
+            for c in 0..loop_bounds.2 {
+                let (x, y, z) = match which_plane {
+                    XYZ::X => (a, c, b),
+                    XYZ::Y => (b, a, c),
+                    XYZ::Z => (c, b, a),
+                };
+
+                // println!("Carving voxel ({}, {})", x, y);
+                if *volume.get_voxel(x, y, z) == false || !volume.voxel_visible(x, y, z) {
+                    continue;
+                }
+
+                let pos_voxel_space = glm::vec3(x as i32, y as i32, z as i32);
+
+                let result = carve_voxel(pos_voxel_space, &volume, &mut non_occluded_views);
+
+                if result == false {
+                    voxels_carved += 1;
+                    *volume.get_voxel(x, y, z) = false;
+                }
+            }
+        }
+    }
+
+    return voxels_carved;
+}
+
 pub fn carve(volume: &mut Volume, views: &mut Vec<View>) {
     let mut voxels_carved = 0;
     loop {
         println!("Carved {} voxels", voxels_carved);
-        let mut converged = true;
 
         for view in views.iter_mut() {
             view.reset_mask();
         }
 
-        for plane_index in 0..volume.depth {
-            let plane_in_world_space = volume.voxel_to_position(0, 0, plane_index).z;
-            println!(
-                "Carving plane {} at location {}",
-                plane_index, plane_in_world_space
-            );
-            let mut non_occluded_views: Vec<_> = views
-                .iter_mut()
-                .filter(|view| view.camera.translation()[2] > plane_in_world_space)
-                .collect();
+        voxels_carved = plane_sweep(XYZ::Z, volume, views);
+        break;
 
-            for y in 0..volume.height {
-                // println!("Carving row {}", y);
-                // io::stdout().flush();
-                for x in 0..volume.width {
-                    // println!("Carving voxel ({}, {})", x, y);
-                    if *volume.get_voxel(x, y, plane_index) == false
-                        || !volume.voxel_visible(x, y, plane_index)
-                    {
-                        continue;
-                    }
+        let mut newly_carved_count = plane_sweep(XYZ::X, volume, views);
 
-                    let pos_voxel_space = glm::vec3(x as i32, y as i32, plane_index as i32);
+        newly_carved_count += plane_sweep(XYZ::Z, volume, views);
 
-                    let result = carve_voxel(pos_voxel_space, &volume, &mut non_occluded_views);
-
-                    if result == false {
-                        voxels_carved += 1;
-                        *volume.get_voxel(x, y, plane_index) = false;
-                        converged = false;
-                    }
-                }
-            }
-        }
-
-        if converged {
+        if newly_carved_count == 0 {
             break;
         }
+
+        voxels_carved += newly_carved_count;
     }
 
     println!("Carved {} voxels", voxels_carved);
