@@ -1,7 +1,41 @@
 use nalgebra_glm as glm;
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Color {
+    pub r: f32,
+    pub g: f32,
+    pub b: f32,
+}
+
+impl Color {
+    pub fn new(r: f32, g: f32, b: f32) -> Color {
+        Color { r, g, b }
+    }
+    pub fn from_vec3(v: glm::Vec3) -> Color {
+        Color {
+            r: v.x,
+            g: v.y,
+            b: v.z,
+        }
+    }
+    pub fn to_image_rs(&self) -> image::Rgb<u8> {
+        image::Rgb([
+            (self.r * 255.0) as u8,
+            (self.g * 255.0) as u8,
+            (self.b * 255.0) as u8,
+        ])
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Voxel {
+    Carved,
+    Untouched,
+    Colored(Color),
+}
+
 pub struct Volume {
-    pub data: Vec<Vec<Vec<bool>>>,
+    pub data: Vec<Vec<Vec<Voxel>>>,
     pub voxel_size: f32,
     pub front_top_left: glm::Vec3,
     pub back_bottom_right: glm::Vec3,
@@ -26,7 +60,7 @@ impl Volume {
             for _ in 0..width {
                 let mut depth_line = vec![];
                 for _ in 0..depth {
-                    depth_line.push(true);
+                    depth_line.push(Voxel::Untouched);
                 }
                 row.push(depth_line);
             }
@@ -89,17 +123,17 @@ impl Volume {
 
         for (x, y, z) in coords {
             // If a neighboring voxel isn't present, then this voxel is visible
-            if self.data[y][x][z] == false {
+            if self.data[y][x][z] == Voxel::Carved {
                 return true;
             }
         }
 
         return false;
     }
-    pub fn get_voxel(&mut self, x: usize, y: usize, z: usize) -> &mut bool {
+    pub fn get_voxel(&mut self, x: usize, y: usize, z: usize) -> &mut Voxel {
         &mut self.data[y][x][z]
     }
-    pub fn get_voxel_ws(&mut self, x: f32, y: f32, z: f32) -> &mut bool {
+    pub fn get_voxel_ws(&mut self, x: f32, y: f32, z: f32) -> &mut Voxel {
         print!("Converting index at ({}, {}, {}) to voxel index: ", x, y, z);
 
         // Flip y and z to match the 3d array coordinate system (origin in front-top-left)
@@ -136,11 +170,11 @@ mod tests {
     #[test]
     fn test_voxel_getters() {
         let mut volume = Volume::new(0.5, glm::vec3(-1.5, 1.5, 1.5), glm::vec3(1.5, -1.5, -1.5));
-        *volume.get_voxel_ws(-1.4, 1.4, 1.4) = true;
-        assert_eq!(*volume.get_voxel_ws(-1.1, 1.1, 1.1), true);
+        *volume.get_voxel_ws(-1.4, 1.4, 1.4) = Voxel::Carved;
+        assert_eq!(*volume.get_voxel_ws(-1.1, 1.1, 1.1), Voxel::Carved);
 
-        *volume.get_voxel_ws(0.0, 0.0, 0.0) = true;
-        assert_eq!(*volume.get_voxel_ws(0.0, 0.0, 0.0), true);
+        *volume.get_voxel_ws(0.0, 0.0, 0.0) = Voxel::Carved;
+        assert_eq!(*volume.get_voxel_ws(0.0, 0.0, 0.0), Voxel::Carved);
     }
     #[test]
     fn test_voxel_to_world_space_converter() {

@@ -1,11 +1,15 @@
 use crate::brdf;
 use crate::brdf::ConsistencyCheck;
 use crate::view::View;
-use crate::volume::Volume;
+use crate::volume::{Color, Volume, Voxel};
 use image::{GenericImage, GenericImageView, Pixel};
 use nalgebra_glm as glm;
 
-pub fn carve_voxel(voxel: glm::IVec3, volume: &Volume, views: &mut Vec<&mut View>) -> bool {
+pub fn carve_voxel(
+    voxel: glm::IVec3,
+    volume: &Volume,
+    views: &mut Vec<&mut View>,
+) -> Option<Color> {
     let position = volume.voxel_to_position(voxel.x as usize, voxel.y as usize, voxel.z as usize);
 
     let position = glm::vec4(
@@ -63,13 +67,13 @@ pub fn carve_voxel(voxel: glm::IVec3, volume: &Volume, views: &mut Vec<&mut View
     }
 
     if colors_and_rays.len() == 0 {
-        return false;
+        return None;
     } else {
         let checker = brdf::VoxelColoring;
 
         let result = checker.consistent(&colors_and_rays);
 
-        if result {
+        if let Some(_) = result {
             for mask in masks {
                 *mask = true;
             }
@@ -122,17 +126,22 @@ fn plane_sweep(which_plane: XYZ, volume: &mut Volume, views: &mut Vec<View>) -> 
                 };
 
                 // println!("Carving voxel ({}, {})", x, y);
-                if *volume.get_voxel(x, y, z) == false || !volume.voxel_visible(x, y, z) {
-                    continue;
-                }
+                // if *volume.get_voxel(x, y, z) == Voxel::Carved || !volume.voxel_visible(x, y, z) {
+                //     continue;
+                // }
 
                 let pos_voxel_space = glm::vec3(x as i32, y as i32, z as i32);
 
                 let result = carve_voxel(pos_voxel_space, &volume, &mut non_occluded_views);
 
-                if result == false {
-                    voxels_carved += 1;
-                    *volume.get_voxel(x, y, z) = false;
+                match result {
+                    None => {
+                        voxels_carved += 1;
+                        *volume.get_voxel(x, y, z) = Voxel::Carved;
+                    }
+                    Some(color) => {
+                        *volume.get_voxel(x, y, z) = Voxel::Colored(color);
+                    }
                 }
             }
         }

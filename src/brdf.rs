@@ -1,15 +1,16 @@
+use crate::volume::Color;
 use nalgebra_glm as glm;
 
 const THRESHOLD: f32 = 0.3;
 
 pub trait ConsistencyCheck {
-    fn consistent(&self, colors_and_rays: &Vec<(glm::Vec3, glm::Vec3)>) -> bool;
+    fn consistent(&self, colors_and_rays: &Vec<(glm::Vec3, glm::Vec3)>) -> Option<Color>;
 }
 
 pub struct VoxelColoring;
 
 impl ConsistencyCheck for VoxelColoring {
-    fn consistent(&self, colors_and_rays: &Vec<(glm::Vec3, glm::Vec3)>) -> bool {
+    fn consistent(&self, colors_and_rays: &Vec<(glm::Vec3, glm::Vec3)>) -> Option<Color> {
         if colors_and_rays.len() == 0 {
             panic!("Can't check consistency of no points");
         }
@@ -18,7 +19,7 @@ impl ConsistencyCheck for VoxelColoring {
             .iter()
             .any(|(c, _)| *c == glm::vec3(0.0, 0.0, 0.0))
         {
-            return false;
+            return None;
         }
 
         let length = colors_and_rays.len();
@@ -32,6 +33,8 @@ impl ConsistencyCheck for VoxelColoring {
         let sum_of_colors = colors
             .iter()
             .fold(glm::vec3(0.0, 0.0, 0.0), |acc, c| acc + *c);
+
+        let average_color = sum_of_colors / (length as f32);
 
         // square sums
         let sum_of_colors = sum_of_colors.component_mul(&sum_of_colors);
@@ -56,9 +59,11 @@ impl ConsistencyCheck for VoxelColoring {
             && variance.y < threshold_squared
             && variance.z < threshold_squared
         {
-            return true;
+            // Don't carve pixel
+            return Some(Color::from_vec3(average_color));
         } else {
-            return false;
+            // Carve pixel
+            return None;
         }
     }
 }

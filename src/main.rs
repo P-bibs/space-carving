@@ -8,7 +8,7 @@ mod volume;
 use crate::volume::Volume;
 use nalgebra_glm as glm;
 
-const NUM_IMAGES: usize = 16;
+const NUM_IMAGES: usize = 25;
 
 fn main() {
     println!("Loading views");
