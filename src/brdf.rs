@@ -1,6 +1,6 @@
 use nalgebra_glm as glm;
 
-const THRESHOLD: f32 = 0.06;
+const THRESHOLD: f32 = 0.3;
 
 pub trait ConsistencyCheck {
     fn consistent(&self, colors_and_rays: &Vec<(glm::Vec3, glm::Vec3)>) -> bool;
@@ -14,22 +14,21 @@ impl ConsistencyCheck for VoxelColoring {
             panic!("Can't check consistency of no points");
         }
 
-        // if colors_and_rays
-        //     .iter()
-        //     .any(|(c, _)| *c == glm::vec3(0.0, 0.0, 0.0))
-        // {
-        //     return false;
-        // }
+        if colors_and_rays
+            .iter()
+            .any(|(c, _)| *c == glm::vec3(0.0, 0.0, 0.0))
+        {
+            return false;
+        }
 
         let length = colors_and_rays.len();
         let colors = colors_and_rays.iter().map(|(c, _)| c).collect::<Vec<_>>();
-        // calculate Σ[X^2]
+
         let sum_of_colors_squared: glm::Vec3 = colors
             .iter()
             .map(|c| glm::vec3(c.x * c.x, c.y * c.y, c.z * c.z))
             .fold(glm::vec3(0.0, 0.0, 0.0), |acc, c| acc + c);
 
-        // Calculate mu
         let sum_of_colors = colors
             .iter()
             .fold(glm::vec3(0.0, 0.0, 0.0), |acc, c| acc + *c);
@@ -46,6 +45,10 @@ impl ConsistencyCheck for VoxelColoring {
             sum_of_colors.y / (length * length) as f32,
             sum_of_colors.z / (length * length) as f32,
         );
+
+        // if variance == glm::vec3(0., 0., 0.) {
+        //     return false;
+        // }
 
         let threshold_squared = THRESHOLD * THRESHOLD;
 

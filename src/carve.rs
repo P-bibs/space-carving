@@ -2,7 +2,7 @@ use crate::brdf;
 use crate::brdf::ConsistencyCheck;
 use crate::view::View;
 use crate::volume::Volume;
-use image::{GenericImageView, Pixel};
+use image::{GenericImage, GenericImageView, Pixel};
 use nalgebra_glm as glm;
 
 pub fn carve_voxel(voxel: glm::IVec3, volume: &Volume, views: &mut Vec<&mut View>) -> bool {
@@ -10,8 +10,8 @@ pub fn carve_voxel(voxel: glm::IVec3, volume: &Volume, views: &mut Vec<&mut View
 
     let position = glm::vec4(
         position[0] as f32,
-        position[2] as f32,
         position[1] as f32,
+        position[2] as f32,
         1.0,
     );
 
@@ -23,19 +23,11 @@ pub fn carve_voxel(voxel: glm::IVec3, volume: &Volume, views: &mut Vec<&mut View
         let height = view.img.height() as i32;
 
         let back_projected: glm::Vec3 = view.camera.projection_matrix() * position;
-        let back_projected = back_projected.xyz();
 
         let back_projected = glm::vec2(
-            back_projected.x, // back_projected.z,
-            back_projected.y, // back_projected.z,
+            back_projected.x / back_projected.z,
+            back_projected.y / back_projected.z,
         );
-
-        let back_projected = glm::vec2(
-            back_projected[0] + (width as f32 / 2.0),
-            back_projected[1] + (height as f32 / 2.0),
-        );
-
-        // println!("Back projected: {:?}", back_projected);
 
         let x = back_projected.x.floor() as i32;
         let y = back_projected.y.floor() as i32;
@@ -101,21 +93,23 @@ fn plane_sweep(which_plane: XYZ, volume: &mut Volume, views: &mut Vec<View>) -> 
     };
     let mut voxels_carved = 0;
     for a in 0..loop_bounds.0 {
-        let index = match which_plane {
-            XYZ::X => 0,
-            XYZ::Y => 1,
-            XYZ::Z => 2,
-        };
         let plane_in_world_space = match which_plane {
             XYZ::X => volume.voxel_to_position(a, 0, 0).x,
             XYZ::Y => volume.voxel_to_position(0, a, 0).y,
             XYZ::Z => volume.voxel_to_position(0, 0, a).z,
         };
+        let view_is_valid = |t: glm::Vec3| match which_plane {
+            XYZ::X => t[0] < plane_in_world_space,
+            XYZ::Y => t[1] < plane_in_world_space,
+            XYZ::Z => t[2] > plane_in_world_space,
+        };
+
         println!("Carving plane {} at location {}", a, plane_in_world_space);
         let mut non_occluded_views: Vec<_> = views
             .iter_mut()
-            .filter(|view| view.camera.translation()[index] > plane_in_world_space)
+            .filter(|view| view_is_valid(view.camera.translation()))
             .collect();
+        println!("{} views are valid", non_occluded_views.len());
 
         for b in 0..loop_bounds.1 {
             // println!("Carving row {}", y);
@@ -156,18 +150,8 @@ pub fn carve(volume: &mut Volume, views: &mut Vec<View>) {
             view.reset_mask();
         }
 
-        voxels_carved = plane_sweep(XYZ::Z, volume, views);
+        voxels_carved = plane_sweep(XYZ::Y, volume, views);
         break;
-
-        let mut newly_carved_count = plane_sweep(XYZ::X, volume, views);
-
-        newly_carved_count += plane_sweep(XYZ::Z, volume, views);
-
-        if newly_carved_count == 0 {
-            break;
-        }
-
-        voxels_carved += newly_carved_count;
     }
 
     println!("Carved {} voxels", voxels_carved);
