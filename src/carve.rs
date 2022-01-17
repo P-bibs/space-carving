@@ -1,5 +1,6 @@
 use crate::brdf;
 use crate::brdf::ConsistencyCheck;
+use crate::exporter;
 use crate::view::View;
 use crate::volume::{Color, Volume, Voxel};
 use image::{GenericImage, GenericImageView, Pixel};

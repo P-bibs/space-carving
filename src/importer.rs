@@ -2,8 +2,9 @@ use crate::view::{CameraData, View};
 use indicatif::ProgressIterator;
 use std::fs;
 
-pub fn load_views(num_images: usize) -> Vec<View> {
-    let metadata_filename = "data/templeRing/templeR_par.txt";
+pub fn load_views(location: &str, prefix: &str, num_images: usize) -> Vec<View> {
+    assert!(location.ends_with("/"));
+    let metadata_filename = format!("{}{}_par.txt", location, prefix);
 
     let metadata = fs::read_to_string(metadata_filename).expect("Couldn't read metadata file");
 
@@ -19,7 +20,7 @@ pub fn load_views(num_images: usize) -> Vec<View> {
         .map(|line| CameraData::new(&line[0..9], &line[9..18], &line[18..21]));
 
     let images = (1..num_images)
-        .map(|i| format!("data/templeRing/templeR{:0width$}.png", i, width = 4))
+        .map(|i| format!("{}{}{:0width$}.png", location, prefix, i, width = 4))
         .map(|filename| image::open(filename).expect("Couldn't open file"))
         .progress();
 

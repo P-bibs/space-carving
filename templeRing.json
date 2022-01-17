@@ -1,0 +1,6 @@
+{
+  "directory": "data/templeRing/",
+  "prefix": "templeR",
+  "bb_front_top_left": [-0.023121, 0.121636, -0.017395],
+  "bb_back_bottom_right": [0.078626, -0.038009, -0.09194]
+}
