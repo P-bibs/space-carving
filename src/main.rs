@@ -27,6 +27,7 @@ struct Args {
     #[clap(short, long, default_value = "carved.ply")]
     output: String,
 
+    /// The size of a voxel
     #[clap(short, long, default_value_t = 0.001)]
     voxel_size: f32,
 }
@@ -35,6 +36,7 @@ struct Args {
 struct Config {
     directory: String,
     prefix: String,
+    // Bounding box coords
     bb_front_top_left: [f32; 3],
     bb_back_bottom_right: [f32; 3],
 }
@@ -44,6 +46,7 @@ fn main() {
 
     let dataset = fs::read_to_string(args.dataset).expect("Couldn't read dataset file");
 
+    // deserialize file to a config struct
     let config: Config = serde_json::from_str(&dataset).unwrap();
 
     println!("Loading views");
@@ -63,7 +66,9 @@ fn main() {
 
     let mut volume = Volume::new(args.voxel_size, bb_front_top_left, bb_back_bottom_right);
 
+    // perform the carving
     carve::carve(&mut volume, &mut views);
 
+    // Output the result
     exporter::write_ply(&mut volume, &args.output);
 }
