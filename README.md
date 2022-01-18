@@ -7,23 +7,20 @@ An implementation of [A Theory of Shape by Space Carving](http://www.cs.columbia
 Reconstruction target:
 
 <p align="center">
-<img src="https://raw.githubusercontent.com/P-bibs/space-carving/main/media/dino.jpg">
+<img src="https://raw.githubusercontent.com/P-bibs/space-carving/main/media/dino.jpg" width="300px">
 </p>
 
 Result:
 
 <p align="center">
-<img src="https://raw.githubusercontent.com/P-bibs/space-carving/main/media/dinofront.png">
-</p>
-
-<p align="center">
-<img src="https://raw.githubusercontent.com/P-bibs/space-carving/main/media/dinoback.png">
+<img src="https://raw.githubusercontent.com/P-bibs/space-carving/main/media/dinofront.png" width="400px">
+<img src="https://raw.githubusercontent.com/P-bibs/space-carving/main/media/dinoback.png" width="400px">
 </p>
 
 Carving process:
 
 <p align="center">
-<img src="https://raw.githubusercontent.com/P-bibs/space-carving/main/media/render.gif">
+<img src="https://raw.githubusercontent.com/P-bibs/space-carving/main/media/render.gif" width="500px">
 </p>
 
 ## Dependencies
