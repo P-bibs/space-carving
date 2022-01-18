@@ -2,6 +2,18 @@
 
 An implementation of [A Theory of Shape by Space Carving](http://www.cs.columbia.edu/~changyin/paper2read/SeitzICCV1999.pdf) in Rust.
 
+## Preview
+
+Reconstruction target:
+![image of dino sculpture](/media/dino.jpg)
+
+Result:
+![front of dino reconstruction](/media/dinofront.png)
+![back of dino reconstruction](/media/dinoback.png)
+
+Carving process:
+![Gif of space carving in action](/media/render.gif)
+
 ## Dependencies
 
 You'll need `rustc` and `cargo`. [Download instructions can be found here](https://www.rust-lang.org/tools/install).
@@ -12,14 +24,16 @@ The visualization Python scripts were tested on Python3.6 and need a variety of 
 
 ### Docker
 
-Alternatively, a dockerfile is provided that includes most of the dependencies. You can build and run it as follows: 
+Alternatively, a dockerfile is provided that includes most of the dependencies. You can build and run it as follows:
 
 Build:
+
 ```bash
 docker build -t space-carving .
 ```
 
 Run:
+
 ```bash
 # Start container
 docker run --mount type=bind,source="$(pwd)",target=/home/space-carving --name space-carve -d -t space-carving
