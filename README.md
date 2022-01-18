@@ -5,14 +5,26 @@ An implementation of [A Theory of Shape by Space Carving](http://www.cs.columbia
 ## Preview
 
 Reconstruction target:
-![image of dino sculpture](/media/dino.jpg)
+
+<p align="center">
+<img src="https://raw.githubusercontent.com/P-bibs/space-carving/main/media/dino.jpg">
+</p>
 
 Result:
-![front of dino reconstruction](/media/dinofront.png)
-![back of dino reconstruction](/media/dinoback.png)
+
+<p align="center">
+<img src="https://raw.githubusercontent.com/P-bibs/space-carving/main/media/dinofront.png">
+</p>
+
+<p align="center">
+<img src="https://raw.githubusercontent.com/P-bibs/space-carving/main/media/dinoback.png">
+</p>
 
 Carving process:
-![Gif of space carving in action](/media/render.gif)
+
+<p align="center">
+<img src="https://raw.githubusercontent.com/P-bibs/space-carving/main/media/render.gif">
+</p>
 
 ## Dependencies
 
