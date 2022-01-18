@@ -49,9 +49,9 @@ impl ConsistencyCheck for VoxelColoring {
             sum_of_colors.z / (length * length) as f32,
         );
 
-        // if variance == glm::vec3(0., 0., 0.) {
-        //     return false;
-        // }
+        if average_color.x < 0.2 && average_color.y < 0.2 && average_color.z < 0.2 {
+            return None;
+        }
 
         let threshold_squared = THRESHOLD * THRESHOLD;
 

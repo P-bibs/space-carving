@@ -98,6 +98,11 @@ fn plane_sweep(which_plane: XYZ, volume: &mut Volume, views: &mut Vec<View>) -> 
     };
     let mut voxels_carved = 0;
     for a in 0..loop_bounds.0 {
+        // exporter::write_ply(
+        //     volume,
+        //     &format!("meshes/carve_{:0width$}.ply", a, width = 4),
+        // );
+
         let plane_in_world_space = match which_plane {
             XYZ::X => volume.voxel_to_position(a, 0, 0).x,
             XYZ::Y => volume.voxel_to_position(0, a, 0).y,
