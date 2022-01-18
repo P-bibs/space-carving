@@ -10,6 +10,26 @@ The output `.ply` file can be viewed in most 3d software, but I've found [Meshla
 
 The visualization Python scripts were tested on Python3.6 and need a variety of dependencies that can be found in the `scripts/requirements.txt` file.
 
+### Docker
+
+Alternatively, a dockerfile is provided that includes most of the dependencies. You can build and run it as follows: 
+
+Build:
+```bash
+docker build -t space-carving .
+```
+
+Run:
+```bash
+# Start container
+docker run --mount type=bind,source="$(pwd)",target=/home/space-carving --name space-carve -d -t space-carving
+
+# Attach to it in bash
+docker exec -it space-carve /bin/bash
+```
+
+You can now `cd /home/space-carving` inside the container and run the project. You'll still need to install the python dependencies with `pip` if you want to run the visualization scripts.
+
 ## Running
 
 Enter `cargo run -- --help` to see possible command line arguments. An example invocation with full arguments is below:
