@@ -30,6 +30,11 @@ struct Args {
     /// The size of a voxel
     #[clap(short, long, default_value_t = 0.001)]
     voxel_size: f32,
+
+    /// The threshold of the carving algorithm
+    /// The lower the value, the more pixels will be carved
+    #[clap(short, long, default_value_t = 0.3)]
+    threshold: f32,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -67,7 +72,7 @@ fn main() {
     let mut volume = Volume::new(args.voxel_size, bb_front_top_left, bb_back_bottom_right);
 
     // perform the carving
-    carve::carve(&mut volume, &mut views);
+    carve::carve(&mut volume, &mut views, args.threshold);
 
     // Output the result
     exporter::write_ply(&mut volume, &args.output);

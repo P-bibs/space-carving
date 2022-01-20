@@ -9,87 +9,72 @@
 use crate::volume::Color;
 use nalgebra_glm as glm;
 
-const THRESHOLD: f32 = 0.3;
+const THRESHOLD: f32 = 0.5;
 
-pub trait ConsistencyCheck {
-    /// Given different images of a scene, determine whether their color
-    /// perceptions are consistent. Each element of the vector is one camera's
-    /// color perception of the voxel and the vector from the voxel to that camera.
-    ///
-    /// Returns None for a pixel that should be carved, and Some(color) for a
-    /// scene element that is present with color `color`
-    fn consistent(&self, colors_and_rays: &Vec<(glm::Vec3, glm::Vec3)>) -> Option<Color>;
-}
+/// perform consistency checking via the voxel coloring algorithm. This assumes
+/// a lambertian radiance function which means that the color of a scene element
+/// should be view-independent. A set of views are deemed to be consistent
+/// if the standard deviation of their perceived colors is below a certain threshold
+pub fn standard_consistency_check(colors: &Vec<glm::Vec3>, threshold: f32) -> Option<Color> {
+    if colors.len() == 0 {
+        panic!("Can't check consistency of no points");
+    }
 
-pub struct VoxelColoring;
+    // Assuming a black background, if any camera sees a background pixel then
+    // this scene element cannot possibly exist
+    if colors
+        .iter()
+        .any(|c| *c == glm::vec3(0.0, 0.0, 0.0))
+    {
+        return None;
+    }
 
-impl ConsistencyCheck for VoxelColoring {
-    /// perform consistency checking via the voxel coloring algorithm. This assumes
-    /// a lambertian radiance function which means that the color of a scene element
-    /// should be view-independent. A set of views are deemed to be consistent
-    /// if the standard deviation of their perceived colors is below a certain threshold
-    fn consistent(&self, colors_and_rays: &Vec<(glm::Vec3, glm::Vec3)>) -> Option<Color> {
-        if colors_and_rays.len() == 0 {
-            panic!("Can't check consistency of no points");
-        }
+    // calculate number of views and extract just the color values for each view
+    let length = colors.len();
 
-        // Assuming a black background, if any camera sees a background pixel then
-        // this scene element cannot possibly exist
-        if colors_and_rays
-            .iter()
-            .any(|(c, _)| *c == glm::vec3(0.0, 0.0, 0.0))
-        {
-            return None;
-        }
+    // Calculate variance:
+    let sum_of_colors_squared: glm::Vec3 = colors
+        .iter()
+        .map(|c| glm::vec3(c.x * c.x, c.y * c.y, c.z * c.z))
+        .fold(glm::vec3(0.0, 0.0, 0.0), |acc, c| acc + c);
 
-        // calculate number of views and extract just the color values for each view
-        let length = colors_and_rays.len();
-        let colors = colors_and_rays.iter().map(|(c, _)| c).collect::<Vec<_>>();
+    let sum_of_colors = colors
+        .iter()
+        .fold(glm::vec3(0.0, 0.0, 0.0), |acc, c| acc + *c);
 
-        // Calculate variance:
-        let sum_of_colors_squared: glm::Vec3 = colors
-            .iter()
-            .map(|c| glm::vec3(c.x * c.x, c.y * c.y, c.z * c.z))
-            .fold(glm::vec3(0.0, 0.0, 0.0), |acc, c| acc + c);
+    let average_color = sum_of_colors / (length as f32);
 
-        let sum_of_colors = colors
-            .iter()
-            .fold(glm::vec3(0.0, 0.0, 0.0), |acc, c| acc + *c);
+    // square sums
+    let sum_of_colors = sum_of_colors.component_mul(&sum_of_colors);
 
-        let average_color = sum_of_colors / (length as f32);
+    let variance = glm::vec3(
+        sum_of_colors_squared.y / length as f32,
+        sum_of_colors_squared.x / length as f32,
+        sum_of_colors_squared.z / length as f32,
+    ) - glm::vec3(
+        sum_of_colors.x / (length * length) as f32,
+        sum_of_colors.y / (length * length) as f32,
+        sum_of_colors.z / (length * length) as f32,
+    );
 
-        // square sums
-        let sum_of_colors = sum_of_colors.component_mul(&sum_of_colors);
+    // Similar to above, near-black average color values indicates that every
+    // view is seeing a black pixel, which means they are seeing background
+    // and this element should be carved.
+    if average_color.x < 0.2 && average_color.y < 0.2 && average_color.z < 0.2 {
+        return None;
+    }
 
-        let variance = glm::vec3(
-            sum_of_colors_squared.y / length as f32,
-            sum_of_colors_squared.x / length as f32,
-            sum_of_colors_squared.z / length as f32,
-        ) - glm::vec3(
-            sum_of_colors.x / (length * length) as f32,
-            sum_of_colors.y / (length * length) as f32,
-            sum_of_colors.z / (length * length) as f32,
-        );
+    let threshold_squared = threshold * threshold;
 
-        // Similar to above, near-black average color values indicates that every
-        // view is seeing a black pixel, which means they are seeing background
-        // and this element should be carved.
-        if average_color.x < 0.2 && average_color.y < 0.2 && average_color.z < 0.2 {
-            return None;
-        }
-
-        let threshold_squared = THRESHOLD * THRESHOLD;
-
-        // ensure each channel is below the threshold
-        if variance.x < threshold_squared
-            && variance.y < threshold_squared
-            && variance.z < threshold_squared
-        {
-            // Don't carve pixel
-            return Some(Color::from_vec3(average_color));
-        } else {
-            // Carve pixel
-            return None;
-        }
+    // ensure each channel is below the threshold
+    if variance.x < threshold_squared
+        && variance.y < threshold_squared
+        && variance.z < threshold_squared
+    {
+        // Don't carve pixel
+        return Some(Color::from_vec3(average_color));
+    } else {
+        // Carve pixel
+        return None;
     }
 }

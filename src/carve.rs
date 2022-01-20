@@ -1,5 +1,4 @@
 use crate::brdf;
-use crate::brdf::ConsistencyCheck;
 use crate::exporter;
 use crate::view::View;
 use crate::volume::{Color, Volume, Voxel};
@@ -10,6 +9,7 @@ pub fn carve_voxel(
     voxel: glm::IVec3,
     volume: &Volume,
     views: &mut Vec<&mut View>,
+    threshold: f32
 ) -> Option<Color> {
     // Convert voxel-space coordinates to scene-space
     let position = volume.voxel_to_position(voxel.x as usize, voxel.y as usize, voxel.z as usize);
@@ -81,9 +81,8 @@ pub fn carve_voxel(
     if colors_and_rays.len() == 0 {
         return None;
     } else {
-        let checker = brdf::VoxelColoring;
-
-        let result = checker.consistent(&colors_and_rays);
+        let colors = colors_and_rays.iter().map(|(c, _)| *c).collect::<Vec<_>>();
+        let result = brdf::standard_consistency_check(&colors, threshold);
 
         // Every time a pixel in an image is used to match with a scene element,
         // we need to mask that pixel so it can't be used to match with
@@ -105,7 +104,7 @@ enum XYZ {
     Z,
 }
 
-fn plane_sweep(which_plane: XYZ, reversed: bool, volume: &mut Volume, views: &mut Vec<View>) -> usize {
+fn plane_sweep(which_plane: XYZ, reversed: bool, volume: &mut Volume, views: &mut Vec<View>, threshold: f32) -> usize {
     // Our loops bounds depend on which axis the plane we're carving is aligned to
     let loop_bounds = match which_plane {
         XYZ::X => (volume.width, volume.depth, volume.height),
@@ -166,7 +165,7 @@ fn plane_sweep(which_plane: XYZ, reversed: bool, volume: &mut Volume, views: &mu
 
                 // Perform the voxel carving calculation for this voxel
                 let pos_voxel_space = glm::vec3(x as i32, y as i32, z as i32);
-                let result = carve_voxel(pos_voxel_space, &volume, &mut non_occluded_views);
+                let result = carve_voxel(pos_voxel_space, &volume, &mut non_occluded_views, threshold);
 
                 match result {
                     None => {
@@ -186,7 +185,7 @@ fn plane_sweep(which_plane: XYZ, reversed: bool, volume: &mut Volume, views: &mu
 
 /// Given an uncarved volume and a set of views, carve the volume so it is
 /// consistent with the views
-pub fn carve(volume: &mut Volume, views: &mut Vec<View>) {
+pub fn carve(volume: &mut Volume, views: &mut Vec<View>, threshold: f32) {
     let mut total_carved = 0;
 
     // for alternate algorithms, we could imagine wanting to continue carving
@@ -210,7 +209,7 @@ pub fn carve(volume: &mut Volume, views: &mut Vec<View>) {
             }
 
             
-            let voxels_carved = plane_sweep(which_plane, reversed, volume, views);
+            let voxels_carved = plane_sweep(which_plane, reversed, volume, views, threshold);
             println!(
                 "Carved {} voxels on {} {:?} sweep",
                 voxels_carved,
