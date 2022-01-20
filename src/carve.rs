@@ -98,13 +98,14 @@ pub fn carve_voxel(
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 enum XYZ {
     X,
     Y,
     Z,
 }
 
-fn plane_sweep(which_plane: XYZ, volume: &mut Volume, views: &mut Vec<View>) -> usize {
+fn plane_sweep(which_plane: XYZ, reversed: bool, volume: &mut Volume, views: &mut Vec<View>) -> usize {
     // Our loops bounds depend on which axis the plane we're carving is aligned to
     let loop_bounds = match which_plane {
         XYZ::X => (volume.width, volume.depth, volume.height),
@@ -112,7 +113,14 @@ fn plane_sweep(which_plane: XYZ, volume: &mut Volume, views: &mut Vec<View>) -> 
         XYZ::Z => (volume.depth, volume.height, volume.width),
     };
     let mut voxels_carved = 0;
-    for a in 0..loop_bounds.0 {
+
+    let plane_bounds: Box<dyn Iterator<Item=_>> = if reversed {
+        Box::new((0..loop_bounds.0).rev())
+    } else {
+        Box::new(0..loop_bounds.0)
+    };
+
+    for a in plane_bounds {
         // Enable this block to write a mesh after each iteration. This is
         // helpful for rendering gifs of the carving process
         if false {
@@ -140,8 +148,8 @@ fn plane_sweep(which_plane: XYZ, volume: &mut Volume, views: &mut Vec<View>) -> 
             .filter(|view| view_is_valid(view.camera.translation()))
             .collect();
 
-        println!("Carving plane {} at location {}", a, plane_in_world_space);
-        println!("{} views are valid", non_occluded_views.len());
+        // println!("Carving plane {} at location {}", a, plane_in_world_space);
+        // println!("{} views are valid", non_occluded_views.len());
 
         for b in 0..loop_bounds.1 {
             for c in 0..loop_bounds.2 {
@@ -152,9 +160,9 @@ fn plane_sweep(which_plane: XYZ, volume: &mut Volume, views: &mut Vec<View>) -> 
                     XYZ::Z => (c, b, a),
                 };
 
-                // if *volume.get_voxel(x, y, z) == Voxel::Carved || !volume.voxel_visible(x, y, z) {
-                //     continue;
-                // }
+                if *volume.get_voxel(x, y, z) == Voxel::Carved || !volume.voxel_visible(x, y, z) {
+                    continue;
+                }
 
                 // Perform the voxel carving calculation for this voxel
                 let pos_voxel_space = glm::vec3(x as i32, y as i32, z as i32);
@@ -179,27 +187,45 @@ fn plane_sweep(which_plane: XYZ, volume: &mut Volume, views: &mut Vec<View>) -> 
 /// Given an uncarved volume and a set of views, carve the volume so it is
 /// consistent with the views
 pub fn carve(volume: &mut Volume, views: &mut Vec<View>) {
-    let mut voxels_carved = 0;
+    let mut total_carved = 0;
 
     // for alternate algorithms, we could imagine wanting to continue carving
     // until convergence (no more pixels are carved by a single pass). However,
     // for the current algorithm we only need to run once, so this loop has
     // a break at the end.
     loop {
-        println!("Carved {} voxels", voxels_carved);
+        let mut carved_this_loop = 0;
+        let sweeps = vec![
+            (XYZ::X, false),
+            (XYZ::Y, false),
+            (XYZ::Z, false),
+            (XYZ::X, true),
+            (XYZ::Y, true),
+            (XYZ::Z, true),
+        ];
 
-        // Reset per-image masks on each loop iteration
-        for view in views.iter_mut() {
-            view.reset_mask();
+        for (which_plane, reversed) in sweeps {
+            for view in views.iter_mut() {
+                view.reset_mask();
+            }
+
+            
+            let voxels_carved = plane_sweep(which_plane, reversed, volume, views);
+            println!(
+                "Carved {} voxels on {} {:?} sweep",
+                voxels_carved,
+                if reversed { "reversed" } else { "forward" }, which_plane
+            );
+
+            carved_this_loop += voxels_carved;
         }
 
-        // Carve the volume starting at the top and sweeping down (works best
-        // with cameras positioned above the volume so that occluders
-        // are considered first.)
-        voxels_carved = plane_sweep(XYZ::Y, volume, views);
-
-        break;
+        if carved_this_loop == 0 {
+            break;
+        } else {
+            total_carved += carved_this_loop;
+        }
     }
 
-    println!("Carved {} voxels", voxels_carved);
+    println!("Carved {} voxels", total_carved);
 }
