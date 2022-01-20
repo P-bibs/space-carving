@@ -14,13 +14,11 @@ pub fn write_ply(volume: &mut Volume, filename: &str) {
                         position_and_color.push((position, color));
                     }
                     Voxel::Untouched => {
-                        // Since these voxels aren't visible, we don't need to export them.
-                        // We can still enable writing them to the file for debugging if we want
-                        if false {
+                        // Only render untouched voxels if they're on the surface of the volume
+                        if volume.voxel_visible(x, y, z) {
                             let position = volume.voxel_to_position(x, y, z);
                             position_and_color.push((position, Color::new(1., 0., 1.)));
                         }
-                        
                     }
                     Voxel::Carved => {}
                 }

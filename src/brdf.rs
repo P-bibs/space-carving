@@ -9,8 +9,6 @@
 use crate::volume::Color;
 use nalgebra_glm as glm;
 
-const THRESHOLD: f32 = 0.5;
-
 /// perform consistency checking via the voxel coloring algorithm. This assumes
 /// a lambertian radiance function which means that the color of a scene element
 /// should be view-independent. A set of views are deemed to be consistent
