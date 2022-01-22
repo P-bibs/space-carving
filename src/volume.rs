@@ -18,13 +18,6 @@ impl Color {
             b: v.z,
         }
     }
-    pub fn to_image_rs(&self) -> image::Rgb<u8> {
-        image::Rgb([
-            (self.r * 255.0) as u8,
-            (self.g * 255.0) as u8,
-            (self.b * 255.0) as u8,
-        ])
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -34,6 +27,7 @@ pub enum Voxel {
     Colored(Color),
 }
 
+/// A struct to represent a 3d volume of voxels.
 pub struct Volume {
     pub data: Vec<Vec<Vec<Voxel>>>,
     pub voxel_size: f32,
@@ -44,7 +38,10 @@ pub struct Volume {
     pub depth: usize,
 }
 impl Volume {
+    /// create a new volume with bounding box defined by front_top_left and back_bottom_right, with
+    /// voxels of size voxel_size.
     pub fn new(voxel_size: f32, front_top_left: glm::Vec3, back_bottom_right: glm::Vec3) -> Self {
+        // Determine dimensions in # of voxels
         let width = ((back_bottom_right.x - front_top_left.x).abs() / voxel_size).ceil() as usize;
         let height = ((back_bottom_right.y - front_top_left.y).abs() / voxel_size).ceil() as usize;
         let depth = ((back_bottom_right.z - front_top_left.z).abs() / voxel_size).ceil() as usize;
@@ -54,6 +51,7 @@ impl Volume {
         let height = if height % 2 == 1 { height + 1 } else { height };
         let depth = if depth % 2 == 1 { depth + 1 } else { depth };
 
+        // Initialize a 3d vector of voxels
         let mut cols = vec![];
         for _ in 0..height {
             let mut row = vec![];
@@ -130,75 +128,8 @@ impl Volume {
 
         return false;
     }
+    /// Get a mutable reference to a voxel at the given indices
     pub fn get_voxel(&mut self, x: usize, y: usize, z: usize) -> &mut Voxel {
         &mut self.data[y][x][z]
-    }
-    pub fn get_voxel_ws(&mut self, x: f32, y: f32, z: f32) -> &mut Voxel {
-        print!("Converting index at ({}, {}, {}) to voxel index: ", x, y, z);
-
-        // Flip y and z to match the 3d array coordinate system (origin in front-top-left)
-        let x = x;
-        let y = -y;
-        let z = -z;
-
-        // Since the voxels are not unit size, we need to scale the coordinates
-        // to the correct voxel.
-        let x = x / self.voxel_size;
-        let y = y / self.voxel_size;
-        let z = z / self.voxel_size;
-
-        // Next, we need to shift by the values from being centered around 0 to
-        // only the positive side of each axis
-        let x = x + (self.width as f32 / 2.0);
-        let y = y + (self.height as f32 / 2.0);
-        let z = z + (self.depth as f32 / 2.0);
-
-        // floor floats to ints
-        let x = x.floor() as usize;
-        let y = y.floor() as usize;
-        let z = z.floor() as usize;
-
-        println!("{}, {}, {}", x, y, z);
-        &mut self.data[y][x][z]
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    // Note this useful idiom: importing names from outer (for mod tests) scope.
-    use super::*;
-    #[test]
-    fn test_voxel_getters() {
-        let mut volume = Volume::new(0.5, glm::vec3(-1.5, 1.5, 1.5), glm::vec3(1.5, -1.5, -1.5));
-        *volume.get_voxel_ws(-1.4, 1.4, 1.4) = Voxel::Carved;
-        assert_eq!(*volume.get_voxel_ws(-1.1, 1.1, 1.1), Voxel::Carved);
-
-        *volume.get_voxel_ws(0.0, 0.0, 0.0) = Voxel::Carved;
-        assert_eq!(*volume.get_voxel_ws(0.0, 0.0, 0.0), Voxel::Carved);
-    }
-    #[test]
-    fn test_voxel_to_world_space_converter() {
-        let volume = Volume::new(1., glm::vec3(0., 2., 0.), glm::vec3(2., 0., -2.));
-        assert_eq!(volume.voxel_to_position(0, 0, 0), glm::vec3(0.5, 1.5, -0.5));
-
-        let volume = Volume::new(0.5, glm::vec3(0., 2., 0.), glm::vec3(2., 0., -2.));
-        assert_eq!(
-            volume.voxel_to_position(0, 0, 0),
-            glm::vec3(0.25, 1.75, -0.25)
-        );
-        assert_eq!(
-            volume.voxel_to_position(1, 1, 1),
-            glm::vec3(0.75, 1.25, -0.75)
-        );
-
-        let volume = Volume::new(0.5, glm::vec3(0., 2., -1.), glm::vec3(2., 0., -2.));
-        assert_eq!(
-            volume.voxel_to_position(0, 0, 0),
-            glm::vec3(0.25, 1.75, -1.25)
-        );
-        assert_eq!(
-            volume.voxel_to_position(1, 1, 1),
-            glm::vec3(0.75, 1.25, -1.75)
-        );
     }
 }

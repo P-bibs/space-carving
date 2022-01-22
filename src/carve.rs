@@ -1,15 +1,14 @@
 use crate::brdf;
-use crate::exporter;
 use crate::view::View;
 use crate::volume::{Color, Volume, Voxel};
-use image::{GenericImage, GenericImageView, Pixel};
+use image::{GenericImageView, Pixel};
 use nalgebra_glm as glm;
 
 pub fn carve_voxel(
     voxel: glm::IVec3,
     volume: &Volume,
     views: &mut Vec<&mut View>,
-    threshold: f32
+    threshold: f32,
 ) -> Option<Color> {
     // Convert voxel-space coordinates to scene-space
     let position = volume.voxel_to_position(voxel.x as usize, voxel.y as usize, voxel.z as usize);
@@ -104,7 +103,13 @@ enum XYZ {
     Z,
 }
 
-fn plane_sweep(which_plane: XYZ, reversed: bool, volume: &mut Volume, views: &mut Vec<View>, threshold: f32) -> usize {
+fn plane_sweep(
+    which_plane: XYZ,
+    reversed: bool,
+    volume: &mut Volume,
+    views: &mut Vec<View>,
+    threshold: f32,
+) -> usize {
     // Our loops bounds depend on which axis the plane we're carving is aligned to
     let loop_bounds = match which_plane {
         XYZ::X => (volume.width, volume.depth, volume.height),
@@ -113,22 +118,13 @@ fn plane_sweep(which_plane: XYZ, reversed: bool, volume: &mut Volume, views: &mu
     };
     let mut voxels_carved = 0;
 
-    let plane_bounds: Box<dyn Iterator<Item=_>> = if reversed {
+    let plane_bounds: Box<dyn Iterator<Item = _>> = if reversed {
         Box::new((0..loop_bounds.0).rev())
     } else {
         Box::new(0..loop_bounds.0)
     };
 
     for a in plane_bounds {
-        // Enable this block to write a mesh after each iteration. This is
-        // helpful for rendering gifs of the carving process
-        if false {
-            exporter::write_ply(
-                volume,
-                &format!("meshes/carve_{:0width$}.ply", a, width = 4),
-            );
-        }
-
         // Calculate the plane's position in scene space
         let plane_in_world_space = match which_plane {
             XYZ::X => volume.voxel_to_position(a, 0, 0).x,
@@ -165,7 +161,8 @@ fn plane_sweep(which_plane: XYZ, reversed: bool, volume: &mut Volume, views: &mu
 
                 // Perform the voxel carving calculation for this voxel
                 let pos_voxel_space = glm::vec3(x as i32, y as i32, z as i32);
-                let result = carve_voxel(pos_voxel_space, &volume, &mut non_occluded_views, threshold);
+                let result =
+                    carve_voxel(pos_voxel_space, &volume, &mut non_occluded_views, threshold);
 
                 match result {
                     None => {
@@ -188,10 +185,7 @@ fn plane_sweep(which_plane: XYZ, reversed: bool, volume: &mut Volume, views: &mu
 pub fn carve(volume: &mut Volume, views: &mut Vec<View>, threshold: f32) {
     let mut total_carved = 0;
 
-    // for alternate algorithms, we could imagine wanting to continue carving
-    // until convergence (no more pixels are carved by a single pass). However,
-    // for the current algorithm we only need to run once, so this loop has
-    // a break at the end.
+    // Carve until convergence
     loop {
         let mut carved_this_loop = 0;
         let sweeps = vec![
@@ -208,12 +202,12 @@ pub fn carve(volume: &mut Volume, views: &mut Vec<View>, threshold: f32) {
                 view.reset_mask();
             }
 
-            
             let voxels_carved = plane_sweep(which_plane, reversed, volume, views, threshold);
             println!(
                 "Carved {} voxels on {} {:?} sweep",
                 voxels_carved,
-                if reversed { "reversed" } else { "forward" }, which_plane
+                if reversed { "reversed" } else { "forward" },
+                which_plane
             );
 
             carved_this_loop += voxels_carved;

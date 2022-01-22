@@ -54,6 +54,7 @@ impl View {
             mask,
         }
     }
+    /// reset the mask to all false
     pub fn reset_mask(&mut self) {
         for row in &mut self.mask {
             for cell in row {

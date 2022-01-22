@@ -1,3 +1,5 @@
+/// This function is for debugging only. It reads in images and backprojects the bounding box points
+/// to the image so we can visualize the bounding box.
 pub fn visualize_bounding_boxes(volume: &mut Volume, views: &mut Vec<View>) {
     let points_and_colors = vec![
         ((0, 0, 0), [255, 0, 0]),

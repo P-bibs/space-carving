@@ -3,9 +3,6 @@
 /// reported by the different views are consistent and therefore if that
 /// location is actually part of the scene volume.
 ///
-/// The `ConsistencyCheck` trait defines the interface for this check, and
-/// different implementors of that trait define different consistency checking
-/// methodologies.
 use crate::volume::Color;
 use nalgebra_glm as glm;
 
@@ -20,10 +17,7 @@ pub fn standard_consistency_check(colors: &Vec<glm::Vec3>, threshold: f32) -> Op
 
     // Assuming a black background, if any camera sees a background pixel then
     // this scene element cannot possibly exist
-    if colors
-        .iter()
-        .any(|c| *c == glm::vec3(0.0, 0.0, 0.0))
-    {
+    if colors.iter().any(|c| *c == glm::vec3(0.0, 0.0, 0.0)) {
         return None;
     }
 
